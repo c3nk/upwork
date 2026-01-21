@@ -3,19 +3,20 @@
 
 import sys
 from cli_standard_kit import StandardCLI
-from scraper.commands import ScrapeCommand, ListCommand, ExportCommand
+from scraper.commands import ScrapeCommand, ListCommand, ScrapeDetailsCommand, ExportCommand
 
 
 def main():
     """Main entry point for the scraper CLI."""
     cli = StandardCLI(
-        "scraper-classicist", 
+        "scraper-classicist",
         "Web scraper for classicist.org with standardized CLI interface"
     )
-    
+
     # Register commands
     cli.register(ScrapeCommand())
     cli.register(ListCommand())
+    cli.register(ScrapeDetailsCommand())
     cli.register(ExportCommand())
     
     # Run the CLI

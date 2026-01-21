@@ -1,240 +1,405 @@
-"""Core scraping functionality for classicist.org."""
+"""Core scraping functionality for classicist.org using Playwright."""
 
+import asyncio
 import time
-import requests
+from pathlib import Path
 from typing import Dict, List, Optional, Any
 from urllib.parse import urljoin, urlparse
-from bs4 import BeautifulSoup
+from playwright.async_api import async_playwright, Browser, Page, BrowserContext
 
 from .parsers import HTMLParser, DataExtractor
 
 
 class ClassicistScraper:
-    """Main scraper class for classicist.org."""
-    
-    def __init__(self, 
-                 delay: float = 1.0,
-                 timeout: int = 30,
-                 user_agent: str = None,
-                 logger=None):
+    """Main scraper class for classicist.org using Playwright."""
+
+    def __init__(self,
+                 delay: float = 2.0,
+                 timeout: int = 30000,  # 30 seconds in ms
+                 headless: bool = True,
+                 logger=None,
+                 output_dir: Optional[Path] = None):
         """Initialize the scraper.
-        
+
         Args:
             delay: Delay between requests in seconds
-            timeout: Request timeout in seconds
-            user_agent: User agent string for requests
+            timeout: Request timeout in milliseconds
+            headless: Whether to run browser in headless mode
             logger: Logger instance
+            output_dir: Directory for debug output
         """
         self.delay = delay
         self.timeout = timeout
+        self.headless = headless
         self.logger = logger
-        
-        # Setup session
-        self.session = requests.Session()
-        if user_agent:
-            self.session.headers.update({'User-Agent': user_agent})
-        else:
-            self.session.headers.update({
-                'User-Agent': 'scraper-classicist-org/0.1.0 (Educational Purpose)'
-            })
-        
+        self.output_dir = Path(output_dir) if output_dir else Path("./outputs")
+
+        self.browser: Optional[Browser] = None
+        self.context: Optional[BrowserContext] = None
+
         # Initialize components
         self.html_parser = HTMLParser()
         self.data_extractor = DataExtractor()
-    
-    def scrape(self, url: str, depth: int = 1) -> Dict[str, Any]:
-        """Scrape data from the given URL.
-        
+
+    async def __aenter__(self):
+        """Async context manager entry."""
+        await self.initialize()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Async context manager exit."""
+        await self.close()
+
+    async def initialize(self):
+        """Initialize Playwright browser."""
+        if self.logger:
+            self.logger.info("Initializing Playwright browser...")
+
+        self.playwright = await async_playwright().start()
+
+        self.browser = await self.playwright.chromium.launch(
+            headless=self.headless,
+            args=[
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-accelerated-2d-canvas',
+                '--no-first-run',
+                '--no-zygote',
+                '--disable-gpu'
+            ]
+        )
+
+        self.context = await self.browser.new_context(
+            user_agent='scraper-classicist-org/0.1.0 (Educational Purpose)',
+            viewport={'width': 1920, 'height': 1080}
+        )
+
+        if self.logger:
+            self.logger.info("Browser initialized successfully")
+
+    async def close(self):
+        """Close browser and cleanup."""
+        if self.context:
+            await self.context.close()
+        if self.browser:
+            await self.browser.close()
+        if hasattr(self, 'playwright'):
+            await self.playwright.stop()
+
+        if self.logger:
+            self.logger.info("Browser closed")
+
+    async def scrape_members_directory(self, url: str = "https://www.classicist.org/membership-directory/") -> Dict[str, Any]:
+        """Scrape the membership directory listing.
+
         Args:
-            url: URL to scrape
-            depth: Scraping depth
-            
+            url: Directory URL to scrape
+
         Returns:
-            Dictionary containing scraped data
+            Dictionary containing all member information
         """
         if self.logger:
-            self.logger.info(f"Starting scrape of {url} at depth {depth}")
-        
+            self.logger.info(f"Starting scrape of membership directory: {url}")
+
         results = {
             'url': url,
             'timestamp': time.time(),
-            'depth': depth,
-            'data': [],
+            'members': [],
             'errors': []
         }
-        
+
         try:
-            # Scrape the main URL
-            page_data = self._scrape_page(url)
-            results['data'].append(page_data)
-            
-            # If depth > 1, scrape linked pages
-            if depth > 1:
-                linked_urls = self._find_scrapable_links(page_data['content'], url)
-                
-                for link_url in linked_urls[:10]:  # Limit to avoid overwhelming
-                    try:
-                        linked_data = self._scrape_page(link_url)
-                        results['data'].append(linked_data)
-                        
-                        # Be respectful - add delay
-                        time.sleep(self.delay)
-                        
-                    except Exception as e:
-                        error_msg = f"Failed to scrape {link_url}: {str(e)}"
-                        results['errors'].append(error_msg)
-                        if self.logger:
-                            self.logger.warning(error_msg)
-        
+            if not self.context:
+                raise RuntimeError("Browser context not initialized")
+            page = await self.context.new_page()
+
+            # Set timeout
+            page.set_default_timeout(self.timeout)
+
+            if self.logger:
+                self.logger.info(f"Navigating to {url}")
+
+            # Navigate to the page
+            await page.goto(url, wait_until='networkidle')
+
+            # Wait for content to load
+            await page.wait_for_timeout(2000)
+
+            # Debug: Save screenshot and HTML for inspection
+            if self.logger:
+                try:
+                    await page.screenshot(path=self.output_dir / "debug_screenshot.png")
+                    html_content = await page.content()
+                    with open(self.output_dir / "debug_page.html", 'w', encoding='utf-8') as f:
+                        f.write(html_content)
+                    self.logger.info("Debug files saved: debug_screenshot.png, debug_page.html")
+                except Exception as e:
+                    self.logger.warning(f"Failed to save debug files: {e}")
+
+            # Extract member listings
+            members_data = await self._extract_members_from_directory(page)
+
+            if self.logger:
+                self.logger.info(f"Found {len(members_data)} members in directory")
+
+            # For now, just collect basic member info from directory
+            # Detail scraping can be done separately to avoid overwhelming the server
+            results['members'] = members_data
+
+            if self.logger:
+                self.logger.info(f"Collected {len(members_data)} members from directory listing")
+                self.logger.info("Note: Detail scraping disabled. Use separate command for individual member details.")
+
+            await page.close()
+
         except Exception as e:
-            error_msg = f"Failed to scrape main URL {url}: {str(e)}"
+            error_msg = f"Failed to scrape directory {url}: {str(e)}"
             results['errors'].append(error_msg)
             if self.logger:
-                self.logger.error(error_msg)
-        
+                self.logger.exception(error_msg)
+
         if self.logger:
-            self.logger.info(f"Scraping completed. Found {len(results['data'])} pages, {len(results['errors'])} errors")
-        
+            self.logger.info(f"Directory scraping completed. Found {len(results['members'])} members, {len(results['errors'])} errors")
+
         return results
-    
-    def _scrape_page(self, url: str) -> Dict[str, Any]:
-        """Scrape a single page.
-        
+
+    async def _extract_members_from_directory(self, page: Page) -> List[Dict[str, Any]]:
+        """Extract member information from the directory page.
+
+        Args:
+            page: Playwright page object
+
+        Returns:
+            List of member dictionaries
+        """
+        members = []
+
+        # Wait for member listings to load
+        await page.wait_for_timeout(1000)
+
+        # Extract member data using JavaScript
+        member_data = await page.evaluate("""
+            () => {
+                const members = [];
+
+                // Look for member listing elements - based on actual page structure
+                const memberElements = document.querySelectorAll('.list-item');
+
+                memberElements.forEach(element => {
+                    const member = {};
+
+                    // Extract name from list-item-title-name
+                    const nameElement = element.querySelector('.list-item-title-name a');
+                    if (nameElement) {
+                        member.name = nameElement.textContent.trim();
+                        member.detail_url = nameElement.href;
+                    }
+
+                    // Extract field/classification from data attributes or text
+                    const dataTitle = element.getAttribute('data-title');
+                    if (dataTitle) {
+                        member.data_title = dataTitle;
+                    }
+
+                    // Check for certified status - look for certified span
+                    const certifiedElement = element.querySelector('.certified');
+                    member.certified = certifiedElement !== null;
+
+                    // Extract profession from class (profession-XXXX)
+                    const classList = element.className.split(' ');
+                    const professionClass = classList.find(cls => cls.startsWith('profession-'));
+                    if (professionClass) {
+                        member.profession_id = professionClass.replace('profession-', '');
+                    }
+
+                    // Extract chapter from class (chapter-XXXX)
+                    const chapterClass = classList.find(cls => cls.startsWith('chapter-'));
+                    if (chapterClass) {
+                        member.chapter_id = chapterClass.replace('chapter-', '');
+                    }
+
+                    // Extract level from class (level-XXXX)
+                    const levelClass = classList.find(cls => cls.startsWith('level-'));
+                    if (levelClass) {
+                        member.level_id = levelClass.replace('level-', '');
+                    }
+
+                    // Only add if we found at least a name
+                    if (member.name) {
+                        members.push(member);
+                    }
+                });
+
+                return members;
+            }
+        """)
+
+        return member_data
+
+    async def _scrape_member_detail(self, url: str) -> Dict[str, Any]:
+        """Scrape detailed information from individual member page.
+
+        Args:
+            url: Member detail page URL
+
+        Returns:
+            Dictionary with detailed member information
+        """
+        detail_data = {
+            'about': '',
+            'social_media': [],
+            'photos': [],
+            'logo': '',
+            'highlights': []
+        }
+
+        try:
+            if not self.context:
+                raise RuntimeError("Browser context not initialized")
+            page = await self.context.new_page()
+            page.set_default_timeout(self.timeout)
+
+            await page.goto(url, wait_until='networkidle')
+            await page.wait_for_timeout(2000)
+
+            # Extract detailed information
+            detail_info = await page.evaluate("""
+                () => {
+                    const data = {
+                        about: '',
+                        social_media: [],
+                        photos: [],
+                        logo: '',
+                        highlights: []
+                    };
+
+                    // Extract about section
+                    const aboutElement = document.querySelector('.about, .description, .bio, [class*="about"], [class*="bio"]');
+                    if (aboutElement) {
+                        data.about = aboutElement.textContent.trim();
+                    }
+
+                    // Extract social media links
+                    const socialLinks = document.querySelectorAll('a[href*="facebook"], a[href*="twitter"], a[href*="linkedin"], a[href*="instagram"], a[href*="youtube"]');
+                    socialLinks.forEach(link => {
+                        data.social_media.push({
+                            platform: link.href.includes('facebook') ? 'facebook' :
+                                     link.href.includes('twitter') ? 'twitter' :
+                                     link.href.includes('linkedin') ? 'linkedin' :
+                                     link.href.includes('instagram') ? 'instagram' :
+                                     link.href.includes('youtube') ? 'youtube' : 'other',
+                            url: link.href,
+                            text: link.textContent.trim()
+                        });
+                    });
+
+                    // Extract photos
+                    const photoElements = document.querySelectorAll('img[src*="photo"], img[src*="image"], .photo, .image');
+                    photoElements.forEach(img => {
+                        if (img.src && !img.src.includes('logo')) {
+                            data.photos.push({
+                                url: img.src,
+                                alt: img.alt || ''
+                            });
+                        }
+                    });
+
+                    // Extract logo
+                    const logoElement = document.querySelector('img[src*="logo"], .logo img, [class*="logo"] img');
+                    if (logoElement && logoElement.src) {
+                        data.logo = logoElement.src;
+                    }
+
+                    // Extract highlights
+                    const highlightElements = document.querySelectorAll('.highlight, .achievement, .award, [class*="highlight"]');
+                    highlightElements.forEach(element => {
+                        const highlight = element.textContent.trim();
+                        if (highlight) {
+                            data.highlights.push(highlight);
+                        }
+                    });
+
+                    return data;
+                }
+            """)
+
+            detail_data.update(detail_info)
+            await page.close()
+
+        except Exception as e:
+            if self.logger:
+                self.logger.warning(f"Failed to scrape member detail page {url}: {str(e)}")
+
+        return detail_data
+
+    async def scrape(self, url: str, depth: int = 1) -> Dict[str, Any]:
+        """Scrape data from the given URL (legacy method for compatibility).
+
         Args:
             url: URL to scrape
-            
+            depth: Scraping depth
+
+        Returns:
+            Dictionary containing scraped data
+        """
+        if url == "https://www.classicist.org/membership-directory/" or "membership-directory" in url:
+            return await self.scrape_members_directory(url)
+        else:
+            # For other URLs, use a generic scraping approach
+            return await self._scrape_generic_page(url)
+
+    async def _scrape_generic_page(self, url: str) -> Dict[str, Any]:
+        """Scrape a generic page.
+
+        Args:
+            url: URL to scrape
+
         Returns:
             Dictionary containing page data
         """
         if self.logger:
-            self.logger.debug(f"Scraping page: {url}")
-        
-        # Make request
-        response = self.session.get(url, timeout=self.timeout)
-        response.raise_for_status()
-        
-        # Parse HTML
-        soup = BeautifulSoup(response.content, 'html.parser')
-        
-        # Extract basic page info
-        page_data = {
+            self.logger.info(f"Scraping generic page: {url}")
+
+        results = {
             'url': url,
-            'status_code': response.status_code,
-            'content_type': response.headers.get('content-type', ''),
-            'title': '',
-            'content': '',
-            'metadata': {},
-            'links': [],
-            'extracted_data': {}
+            'timestamp': time.time(),
+            'data': [],
+            'errors': []
         }
-        
-        # Extract title
-        title_tag = soup.find('title')
-        if title_tag:
-            page_data['title'] = title_tag.get_text().strip()
-        
-        # Extract main content
-        content = self.html_parser.extract_main_content(soup)
-        page_data['content'] = content
-        
-        # Extract metadata
-        page_data['metadata'] = self.html_parser.extract_metadata(soup)
-        
-        # Extract links
-        page_data['links'] = self.html_parser.extract_links(soup, base_url=url)
-        
-        # Extract specific data based on page type
-        page_data['extracted_data'] = self.data_extractor.extract_data(soup, url)
-        
-        return page_data
-    
-    def _find_scrapable_links(self, content: str, base_url: str) -> List[str]:
-        """Find links that should be scraped.
-        
-        Args:
-            content: HTML content
-            base_url: Base URL for resolving relative links
-            
-        Returns:
-            List of URLs to scrape
-        """
-        soup = BeautifulSoup(content, 'html.parser')
-        links = []
-        
-        # Look for specific patterns that indicate scrapable content
-        selectors = [
-            'a[href*="/issues/"]',
-            'a[href*="/archives/"]',
-            'a[href*="/article/"]',
-            'a[href*="/post/"]'
-        ]
-        
-        for selector in selectors:
-            elements = soup.select(selector)
-            for element in elements:
-                href = element.get('href')
-                if href:
-                    full_url = urljoin(base_url, href)
-                    if self._is_valid_target(full_url):
-                        links.append(full_url)
-        
-        # Remove duplicates while preserving order
-        seen = set()
-        unique_links = []
-        for link in links:
-            if link not in seen:
-                seen.add(link)
-                unique_links.append(link)
-        
-        return unique_links
-    
-    def _is_valid_target(self, url: str) -> bool:
-        """Check if URL is a valid scraping target.
-        
-        Args:
-            url: URL to check
-            
-        Returns:
-            True if URL should be scraped
-        """
-        parsed = urlparse(url)
-        
-        # Must be from classicist.org
-        if 'classicist.org' not in parsed.netloc.lower():
-            return False
-        
-        # Skip common non-content pages
-        skip_patterns = [
-            '/wp-admin/',
-            '/wp-login',
-            '/wp-content/',
-            '/feed/',
-            '/comment',
-            '/tag/',
-            '/category/',
-            'mailto:',
-            '#',
-            '?'
-        ]
-        
-        for pattern in skip_patterns:
-            if pattern in url.lower():
-                return False
-        
-        return True
-    
-    def close(self):
-        """Close the session and cleanup resources."""
-        if self.session:
-            self.session.close()
-        
-        if self.logger:
-            self.logger.info("Scraper session closed")
-    
-    def __enter__(self):
-        """Context manager entry."""
-        return self
-    
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """Context manager exit."""
-        self.close()
+
+        try:
+            if not self.context:
+                raise RuntimeError("Browser context not initialized")
+
+            page = await self.context.new_page()
+            page.set_default_timeout(self.timeout)
+
+            await page.goto(url, wait_until='networkidle')
+            await page.wait_for_timeout(2000)
+
+            # Extract basic page content
+            page_data = await page.evaluate("""
+                () => {
+                    return {
+                        url: window.location.href,
+                        title: document.title,
+                        content: document.body.innerText,
+                        links: Array.from(document.querySelectorAll('a')).map(a => ({
+                            text: a.textContent.trim(),
+                            url: a.href
+                        }))
+                    };
+                }
+            """)
+
+            results['data'].append(page_data)
+            await page.close()
+
+        except Exception as e:
+            error_msg = f"Failed to scrape page {url}: {str(e)}"
+            results['errors'].append(error_msg)
+            if self.logger:
+                self.logger.exception(error_msg)
+
+        return results

@@ -162,10 +162,10 @@ class DataExporter:
     
     def _prepare_for_json(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Prepare data for JSON export.
-        
+
         Args:
             data: Raw data
-            
+
         Returns:
             Data prepared for JSON export
         """
@@ -176,64 +176,117 @@ class DataExporter:
                 'tool': 'scraper-classicist-org'
             },
             'scraping_info': {
-                'depth': data.get('depth', 1),
-                'pages_found': len(data.get('data', [])),
                 'errors': data.get('errors', [])
-            },
-            'pages': []
-        }
-        
-        # Process each page
-        for page in data.get('data', []):
-            page_data = {
-                'url': page.get('url', ''),
-                'title': page.get('title', ''),
-                'status_code': page.get('status_code', ''),
-                'content_type': page.get('content_type', ''),
-                'metadata': page.get('metadata', {}),
-                'extracted_data': page.get('extracted_data', {}),
-                'links_count': len(page.get('links', [])),
-                'content_preview': self._get_content_preview(page.get('content', '')),
-                'authors': page.get('extracted_data', {}).get('authors', []),
-                'keywords': page.get('extracted_data', {}).get('keywords', [])
             }
-            json_data['pages'].append(page_data)
-        
+        }
+
+        # Check if this is membership directory data
+        if 'members' in data:
+            json_data['scraping_info']['members_found'] = len(data.get('members', []))
+            json_data['members'] = []
+
+            # Process each member
+            for member in data.get('members', []):
+                member_data = {
+                    'name': member.get('name', ''),
+                    'field': member.get('field', ''),
+                    'city': member.get('city', ''),
+                    'state': member.get('state', ''),
+                    'location': member.get('location', ''),
+                    'mailing_address': member.get('mailing_address', ''),
+                    'phone': member.get('phone', ''),
+                    'email': member.get('email', ''),
+                    'certified': member.get('certified', False),
+                    'detail_url': member.get('detail_url', ''),
+                    'about': member.get('about', ''),
+                    'social_media': member.get('social_media', []),
+                    'logo': member.get('logo', ''),
+                    'highlights': member.get('highlights', []),
+                    'photos': member.get('photos', [])
+                }
+                json_data['members'].append(member_data)
+        else:
+            # Handle legacy page data
+            json_data['scraping_info']['pages_found'] = len(data.get('data', []))
+            json_data['scraping_info']['depth'] = data.get('depth', 1)
+            json_data['pages'] = []
+
+            # Process each page
+            for page in data.get('data', []):
+                page_data = {
+                    'url': page.get('url', ''),
+                    'title': page.get('title', ''),
+                    'status_code': page.get('status_code', ''),
+                    'content_type': page.get('content_type', ''),
+                    'metadata': page.get('metadata', {}),
+                    'extracted_data': page.get('extracted_data', {}),
+                    'links_count': len(page.get('links', [])),
+                    'content_preview': self._get_content_preview(page.get('content', '')),
+                    'authors': page.get('extracted_data', {}).get('authors', []),
+                    'keywords': page.get('extracted_data', {}).get('keywords', [])
+                }
+                json_data['pages'].append(page_data)
+
         return json_data
     
     def _flatten_for_csv(self, data: Dict[str, Any]) -> List[Dict[str, str]]:
         """Flatten data for CSV export.
-        
+
         Args:
             data: Raw data
-            
+
         Returns:
             List of flattened dictionaries
         """
         flattened = []
-        
-        for page in data.get('data', []):
-            extracted = page.get('extracted_data', {})
-            
-            flat_row = {
-                'url': page.get('url', ''),
-                'timestamp': data.get('timestamp', ''),
-                'title': page.get('title', ''),
-                'status_code': page.get('status_code', ''),
-                'content_type': page.get('content_type', ''),
-                'page_type': extracted.get('page_type', ''),
-                'authors': '; '.join([a.get('name', '') for a in extracted.get('authors', [])]),
-                'keywords': '; '.join(extracted.get('keywords', [])),
-                'content_length': len(page.get('content', '')),
-                'content_preview': self._get_content_preview(page.get('content', '')),
-                'links_count': len(page.get('links', [])),
-                'issue_number': extracted.get('issue_number', ''),
-                'year': extracted.get('year', ''),
-                'abstract': extracted.get('abstract', '')
-            }
-            
-            flattened.append(flat_row)
-        
+
+        # Check if this is membership directory data
+        if 'members' in data:
+            # Handle membership directory data
+            for member in data.get('members', []):
+                flat_row = {
+                    'name': member.get('name', ''),
+                    'field': member.get('field', ''),
+                    'city': member.get('city', ''),
+                    'state': member.get('state', ''),
+                    'location': member.get('location', ''),
+                    'mailing_address': member.get('mailing_address', ''),
+                    'phone': member.get('phone', ''),
+                    'email': member.get('email', ''),
+                    'certified': 'Yes' if member.get('certified', False) else 'No',
+                    'detail_url': member.get('detail_url', ''),
+                    'about': member.get('about', ''),
+                    'social_media': '; '.join([f"{sm.get('platform', '')}: {sm.get('url', '')}" for sm in member.get('social_media', [])]),
+                    'logo': member.get('logo', ''),
+                    'highlights': '; '.join(member.get('highlights', [])),
+                    'photos_count': len(member.get('photos', [])),
+                    'timestamp': data.get('timestamp', '')
+                }
+                flattened.append(flat_row)
+        else:
+            # Handle legacy page data
+            for page in data.get('data', []):
+                extracted = page.get('extracted_data', {})
+
+                flat_row = {
+                    'url': page.get('url', ''),
+                    'timestamp': data.get('timestamp', ''),
+                    'title': page.get('title', ''),
+                    'status_code': page.get('status_code', ''),
+                    'content_type': page.get('content_type', ''),
+                    'page_type': extracted.get('page_type', ''),
+                    'authors': '; '.join([a.get('name', '') for a in extracted.get('authors', [])]),
+                    'keywords': '; '.join(extracted.get('keywords', [])),
+                    'content_length': len(page.get('content', '')),
+                    'content_preview': self._get_content_preview(page.get('content', '')),
+                    'links_count': len(page.get('links', [])),
+                    'issue_number': extracted.get('issue_number', ''),
+                    'year': extracted.get('year', ''),
+                    'abstract': extracted.get('abstract', '')
+                }
+
+                flattened.append(flat_row)
+
         return flattened
     
     def _get_content_preview(self, content: str, max_length: int = 200) -> str:
