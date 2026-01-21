@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cli-standard-kit"
+version = "1.0.4"
+description = "Reusable CLI framework and utilities for consistent command-line interfaces"
+readme = "README.md"
+# License specified in classifiers for compatibility
+authors = [{name = "Cenk Kabahasanoglu", email = "me@c3nk.com"}]
+requires-python = ">=3.9"
+keywords = ["cli", "command-line", "framework", "utilities", "colors", "logging", "batch-processing", "argparse"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: System :: Shells",
+]
+
+[project.urls]
+Homepage = "https://github.com/c3nk/cli-standard-kit"
+Documentation = "https://github.com/c3nk/cli-standard-kit#readme"
+Repository = "https://github.com/c3nk/cli-standard-kit.git"
+Issues = "https://github.com/c3nk/cli-standard-kit/issues"
+
+[tool.setuptools]
+packages = ["cli_standard_kit"]
+
+[tool.setuptools.package-data]
+cli_standard_kit = ["py.typed"]
