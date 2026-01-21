@@ -1,0 +1,4 @@
+include README.md
+recursive-include cli_standard_kit *.py
+include cli_standard_kit/py.typed
+recursive-include scraper *.py
