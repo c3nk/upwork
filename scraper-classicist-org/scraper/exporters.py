@@ -3,7 +3,6 @@
 import json
 import csv
 import pandas as pd
-import unicodedata
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 from datetime import datetime
@@ -11,92 +10,19 @@ from datetime import datetime
 
 class DataExporter:
     """Utility class for exporting scraped data to various formats."""
-
+    
     def __init__(self, output_dir: Path, logger=None):
         """Initialize the data exporter.
-
+        
         Args:
             output_dir: Directory to save exported files
             logger: Logger instance
         """
         self.output_dir = Path(output_dir)
         self.logger = logger
-
+        
         # Ensure output directory exists
         self.output_dir.mkdir(parents=True, exist_ok=True)
-
-    def _normalize_to_ascii(self, text: str) -> str:
-        """Normalize text to ASCII-compatible characters.
-
-        Args:
-            text: Input text that may contain Unicode characters
-
-        Returns:
-            ASCII-normalized text
-        """
-        if not isinstance(text, str):
-            text = str(text)
-
-        # First, clean up common CSV formatting issues
-        # Remove surrounding quotes that might cause issues
-        text = text.strip()
-        if text.startswith('"') and text.endswith('"'):
-            text = text[1:-1]
-
-        # Normalize Unicode characters to their closest ASCII equivalents
-        normalized = unicodedata.normalize('NFKD', text)
-
-        # Keep only ASCII characters, replace others with safe equivalents
-        ascii_text = ''
-        for char in normalized:
-            if ord(char) < 128:  # ASCII character
-                ascii_text += char
-            elif unicodedata.category(char) != 'Mn':  # Not a combining character
-                # Replace common Unicode characters with ASCII equivalents
-                if char in ['–', '—', '―']:  # Various dash characters
-                    ascii_text += '-'
-                elif char in ['"', '"', '"', '"', '"', '"']:  # Various quote characters
-                    ascii_text += '"'
-                elif char in [''', ''', ''', ''', ''', ''']:  # Various apostrophe characters
-                    ascii_text += "'"
-                elif char in ['…', '…']:  # Ellipsis
-                    ascii_text += '...'
-                elif char in ['•', '·', '•', '◦']:  # Bullet points
-                    ascii_text += '-'
-                elif char in ['°', '°']:  # Degree symbol
-                    ascii_text += ' degrees'
-                elif char in ['™', '®', '©']:  # Trademark symbols
-                    continue  # Remove trademark symbols
-                elif char in ['€', '£', '¥', '¢']:  # Currency symbols
-                    continue  # Remove currency symbols for now
-                elif char in ['→', '←', '↑', '↓', '↔']:  # Arrows
-                    ascii_text += '->'
-                elif char in ['✓', '✔', '☑']:  # Check marks
-                    ascii_text += 'Yes'
-                elif char in ['✗', '✘', '☒']:  # X marks
-                    ascii_text += 'No'
-                else:
-                    # For other characters, try to get the base character
-                    try:
-                        base_char = unicodedata.normalize('NFD', char)[0] if len(unicodedata.normalize('NFD', char)) > 0 else char
-                        if ord(base_char) < 128:
-                            ascii_text += base_char
-                        else:
-                            # Replace unknown Unicode characters with space
-                            ascii_text += ' '
-                    except:
-                        ascii_text += ' '
-
-        # Clean up multiple spaces and normalize whitespace
-        import re
-        ascii_text = re.sub(r'\s+', ' ', ascii_text.strip())
-
-        # Additional cleanup for CSV safety
-        # Escape quotes by doubling them if needed
-        if '"' in ascii_text:
-            ascii_text = ascii_text.replace('"', '""')
-
-        return ascii_text
     
     def export(self, data: Dict[str, Any], 
                format: str = "json", 
@@ -262,21 +188,21 @@ class DataExporter:
             # Process each member
             for member in data.get('members', []):
                 member_data = {
-                    'name': self._normalize_to_ascii(member.get('name', '')),
-                    'field': self._normalize_to_ascii(member.get('field', '')),
-                    'city': self._normalize_to_ascii(member.get('city', '')),
-                    'state': self._normalize_to_ascii(member.get('state', '')),
-                    'location': self._normalize_to_ascii(member.get('location', '')),
-                    'mailing_address': self._normalize_to_ascii(member.get('mailing_address', '')),
-                    'phone': self._normalize_to_ascii(member.get('phone', '')),
-                    'email': self._normalize_to_ascii(member.get('email', '')),
+                    'name': member.get('name', ''),
+                    'field': member.get('field', ''),
+                    'city': member.get('city', ''),
+                    'state': member.get('state', ''),
+                    'location': member.get('location', ''),
+                    'mailing_address': member.get('mailing_address', ''),
+                    'phone': member.get('phone', ''),
+                    'email': member.get('email', ''),
                     'certified': member.get('certified', False),
-                    'detail_url': self._normalize_to_ascii(member.get('detail_url', '')),
-                    'about': self._normalize_to_ascii(member.get('about', '')),
-                    'social_media': member.get('social_media', []),  # Keep as is for JSON structure
-                    'logo': self._normalize_to_ascii(member.get('logo', '')),
-                    'highlights': [self._normalize_to_ascii(h) for h in member.get('highlights', [])],
-                    'photos': member.get('photos', [])  # Keep as is for JSON structure
+                    'detail_url': member.get('detail_url', ''),
+                    'about': member.get('about', ''),
+                    'social_media': member.get('social_media', []),
+                    'logo': member.get('logo', ''),
+                    'highlights': member.get('highlights', []),
+                    'photos': member.get('photos', [])
                 }
                 json_data['members'].append(member_data)
         else:
@@ -288,16 +214,16 @@ class DataExporter:
             # Process each page
             for page in data.get('data', []):
                 page_data = {
-                    'url': self._normalize_to_ascii(page.get('url', '')),
-                    'title': self._normalize_to_ascii(page.get('title', '')),
+                    'url': page.get('url', ''),
+                    'title': page.get('title', ''),
                     'status_code': page.get('status_code', ''),
                     'content_type': page.get('content_type', ''),
                     'metadata': page.get('metadata', {}),
                     'extracted_data': page.get('extracted_data', {}),
                     'links_count': len(page.get('links', [])),
-                    'content_preview': self._normalize_to_ascii(self._get_content_preview(page.get('content', ''))),
+                    'content_preview': self._get_content_preview(page.get('content', '')),
                     'authors': page.get('extracted_data', {}).get('authors', []),
-                    'keywords': [self._normalize_to_ascii(kw) for kw in page.get('extracted_data', {}).get('keywords', [])]
+                    'keywords': page.get('extracted_data', {}).get('keywords', [])
                 }
                 json_data['pages'].append(page_data)
 
@@ -319,20 +245,20 @@ class DataExporter:
             # Handle membership directory data
             for member in data.get('members', []):
                 flat_row = {
-                    'name': self._normalize_to_ascii(member.get('name', '')),
-                    'field': self._normalize_to_ascii(member.get('field', '')),
-                    'city': self._normalize_to_ascii(member.get('city', '')),
-                    'state': self._normalize_to_ascii(member.get('state', '')),
-                    'location': self._normalize_to_ascii(member.get('location', '')),
-                    'mailing_address': self._normalize_to_ascii(member.get('mailing_address', '')),
-                    'phone': self._normalize_to_ascii(member.get('phone', '')),
-                    'email': self._normalize_to_ascii(member.get('email', '')),
+                    'name': member.get('name', ''),
+                    'field': member.get('field', ''),
+                    'city': member.get('city', ''),
+                    'state': member.get('state', ''),
+                    'location': member.get('location', ''),
+                    'mailing_address': member.get('mailing_address', ''),
+                    'phone': member.get('phone', ''),
+                    'email': member.get('email', ''),
                     'certified': 'Yes' if member.get('certified', False) else 'No',
-                    'detail_url': self._normalize_to_ascii(member.get('detail_url', '')),
-                    'about': self._normalize_to_ascii(member.get('about', '')),
-                    'social_media': self._normalize_to_ascii('; '.join([f"{sm.get('platform', '')}: {sm.get('url', '')}" for sm in member.get('social_media', [])])),
-                    'logo': self._normalize_to_ascii(member.get('logo', '')),
-                    'highlights': self._normalize_to_ascii('; '.join(member.get('highlights', []))),
+                    'detail_url': member.get('detail_url', ''),
+                    'about': member.get('about', ''),
+                    'social_media': '; '.join([f"{sm.get('platform', '')}: {sm.get('url', '')}" for sm in member.get('social_media', [])]),
+                    'logo': member.get('logo', ''),
+                    'highlights': '; '.join(member.get('highlights', [])),
                     'photos_count': len(member.get('photos', [])),
                     'timestamp': data.get('timestamp', '')
                 }
@@ -343,20 +269,20 @@ class DataExporter:
                 extracted = page.get('extracted_data', {})
 
                 flat_row = {
-                    'url': self._normalize_to_ascii(page.get('url', '')),
+                    'url': page.get('url', ''),
                     'timestamp': data.get('timestamp', ''),
-                    'title': self._normalize_to_ascii(page.get('title', '')),
+                    'title': page.get('title', ''),
                     'status_code': page.get('status_code', ''),
                     'content_type': page.get('content_type', ''),
-                    'page_type': self._normalize_to_ascii(extracted.get('page_type', '')),
-                    'authors': self._normalize_to_ascii('; '.join([a.get('name', '') for a in extracted.get('authors', [])])),
-                    'keywords': self._normalize_to_ascii('; '.join(extracted.get('keywords', []))),
+                    'page_type': extracted.get('page_type', ''),
+                    'authors': '; '.join([a.get('name', '') for a in extracted.get('authors', [])]),
+                    'keywords': '; '.join(extracted.get('keywords', [])),
                     'content_length': len(page.get('content', '')),
-                    'content_preview': self._normalize_to_ascii(self._get_content_preview(page.get('content', ''))),
+                    'content_preview': self._get_content_preview(page.get('content', '')),
                     'links_count': len(page.get('links', [])),
                     'issue_number': extracted.get('issue_number', ''),
                     'year': extracted.get('year', ''),
-                    'abstract': self._normalize_to_ascii(extracted.get('abstract', ''))
+                    'abstract': extracted.get('abstract', '')
                 }
 
                 flattened.append(flat_row)
