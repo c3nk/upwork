@@ -2,6 +2,8 @@
 
 Web scraper for classicist.org membership directory with standardized CLI interface built on cli-standard-kit.
 
+**Developed for Upwork project:** https://www.upwork.com/jobs/~022013748868429862911
+
 This project provides a comprehensive tool for extracting member data from the classicist.org membership directory with professional CLI features.
 
 ## ✨ Features
