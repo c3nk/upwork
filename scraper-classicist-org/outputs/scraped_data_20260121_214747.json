@@ -1,0 +1,26 @@
+{
+  "export_info": {
+    "timestamp": "2026-01-21T21:47:47.646359",
+    "source": "https://classicist.org/",
+    "tool": "scraper-classicist-org"
+  },
+  "scraping_info": {
+    "errors": [],
+    "pages_found": 1,
+    "depth": 1
+  },
+  "pages": [
+    {
+      "url": "https://www.classicist.org/",
+      "title": "Institute of Classical Architecture & Art",
+      "status_code": "",
+      "content_type": "",
+      "metadata": {},
+      "extracted_data": {},
+      "links_count": 122,
+      "content_preview": "ICAA ABOUT ICAA RESOURCES PROFESSIONAL DIRECTORY SEARCH EDUCATION ARTICLES VIDEOS CALENDAR TRAVEL HONORS BOOKS CHAPTERS MEMBERSHIP DONATE Human Cities: The Fourth Annual Lykoudis Lecture with Dr. Deme...",
+      "authors": [],
+      "keywords": []
+    }
+  ]
+}

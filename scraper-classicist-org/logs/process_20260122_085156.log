@@ -1,0 +1,23 @@
+2026-01-22 08:51:56 [INFO] Initializing Playwright browser...
+2026-01-22 08:51:56 [INFO] Browser initialized successfully
+2026-01-22 08:51:56 [INFO] Scraping details for A Classical Studio, Inc (1/10)
+2026-01-22 08:52:04 [INFO] Saved debug HTML for A Classical Studio, Inc: /Users/cenk-isu/Documents/_projects/upwork/scraper-classicist-org/outputs/debug_A Classical Studio, Inc.html
+2026-01-22 08:52:06 [INFO] Scraping details for A. A. Ford Interiors (2/10)
+2026-01-22 08:52:11 [INFO] Saved debug HTML for A. A. Ford Interiors: /Users/cenk-isu/Documents/_projects/upwork/scraper-classicist-org/outputs/debug_A. A. Ford Interiors.html
+2026-01-22 08:52:13 [INFO] Scraping details for A. Ottavino Corp. (3/10)
+2026-01-22 08:52:18 [INFO] Saved debug HTML for A. Ottavino Corp.: /Users/cenk-isu/Documents/_projects/upwork/scraper-classicist-org/outputs/debug_A. Ottavino Corp..html
+2026-01-22 08:52:20 [INFO] Scraping details for Aalto Marble Inlay (4/10)
+2026-01-22 08:52:25 [INFO] Saved debug HTML for Aalto Marble Inlay: /Users/cenk-isu/Documents/_projects/upwork/scraper-classicist-org/outputs/debug_Aalto Marble Inlay.html
+2026-01-22 08:52:27 [INFO] Scraping details for Aaron Cote Architecture PLLC (5/10)
+2026-01-22 08:52:32 [INFO] Saved debug HTML for Aaron Cote Architecture PLLC: /Users/cenk-isu/Documents/_projects/upwork/scraper-classicist-org/outputs/debug_Aaron Cote Architecture PLLC.html
+2026-01-22 08:52:34 [INFO] Scraping details for AB Dwellings LLC (6/10)
+2026-01-22 08:52:39 [INFO] Saved debug HTML for AB Dwellings LLC: /Users/cenk-isu/Documents/_projects/upwork/scraper-classicist-org/outputs/debug_AB Dwellings LLC.html
+2026-01-22 08:52:41 [INFO] Scraping details for Abaya Design Studio (7/10)
+2026-01-22 08:52:46 [INFO] Saved debug HTML for Abaya Design Studio: /Users/cenk-isu/Documents/_projects/upwork/scraper-classicist-org/outputs/debug_Abaya Design Studio.html
+2026-01-22 08:52:48 [INFO] Scraping details for ABC Worldwide Stone (8/10)
+2026-01-22 08:52:53 [INFO] Saved debug HTML for ABC Worldwide Stone: /Users/cenk-isu/Documents/_projects/upwork/scraper-classicist-org/outputs/debug_ABC Worldwide Stone.html
+2026-01-22 08:52:55 [INFO] Scraping details for Absolute Hardwood Flooring, Inc (9/10)
+2026-01-22 08:53:00 [INFO] Saved debug HTML for Absolute Hardwood Flooring, Inc: /Users/cenk-isu/Documents/_projects/upwork/scraper-classicist-org/outputs/debug_Absolute Hardwood Flooring, In.html
+2026-01-22 08:53:02 [INFO] Scraping details for Acanthus International (10/10)
+2026-01-22 08:53:07 [INFO] Saved debug HTML for Acanthus International: /Users/cenk-isu/Documents/_projects/upwork/scraper-classicist-org/outputs/debug_Acanthus International.html
+2026-01-22 08:53:07 [INFO] Browser closed

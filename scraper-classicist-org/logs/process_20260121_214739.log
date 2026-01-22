@@ -1,0 +1,5 @@
+2026-01-21 21:47:39 [INFO] Initializing Playwright browser...
+2026-01-21 21:47:40 [INFO] Browser initialized successfully
+2026-01-21 21:47:40 [INFO] Scraping generic page: https://classicist.org/
+2026-01-21 21:47:47 [INFO] Browser closed
+2026-01-21 21:47:47 [INFO] Data exported to JSON: /Users/cenk-isu/Documents/_projects/upwork/scraper-classicist-org/outputs/scraped_data_20260121_214747.json

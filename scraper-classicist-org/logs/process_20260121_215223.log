@@ -1,0 +1,11 @@
+2026-01-21 21:52:23 [INFO] Initializing Playwright browser...
+2026-01-21 21:52:24 [INFO] Browser initialized successfully
+2026-01-21 21:52:24 [INFO] Starting scrape of membership directory: https://www.classicist.org/membership-directory/
+2026-01-21 21:52:24 [INFO] Navigating to https://www.classicist.org/membership-directory/
+2026-01-21 21:52:33 [INFO] Debug files saved: debug_screenshot.png, debug_page.html
+2026-01-21 21:52:34 [INFO] Found 1514 members in directory
+2026-01-21 21:52:34 [INFO] Collected 1514 members from directory listing
+2026-01-21 21:52:34 [INFO] Note: Detail scraping disabled. Use separate command for individual member details.
+2026-01-21 21:52:34 [INFO] Directory scraping completed. Found 1514 members, 0 errors
+2026-01-21 21:52:34 [INFO] Browser closed
+2026-01-21 21:52:34 [INFO] Data exported to CSV: /Users/cenk-isu/Documents/_projects/upwork/scraper-classicist-org/outputs/scraped_data_20260121_215234.csv

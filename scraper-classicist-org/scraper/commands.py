@@ -266,7 +266,7 @@ class ScrapeDetailsCommand(BaseCommand):
                         print(f"Processing: {member_name}")
 
                         # Scrape member details
-                        detail_data = await self._scrape_single_member_details(scraper, detail_url)
+                        detail_data = await self._scrape_single_member_details(scraper, detail_url, member_name)
 
                         # Combine basic info with details
                         member_info = member_row.to_dict()
@@ -303,7 +303,7 @@ class ScrapeDetailsCommand(BaseCommand):
                 logger.exception("Detail scraping failed")
             return 1
 
-    async def _scrape_single_member_details(self, scraper: ClassicistScraper, url: str) -> Dict[str, Any]:
+    async def _scrape_single_member_details(self, scraper: ClassicistScraper, url: str, member_name: str = "") -> Dict[str, Any]:
         """Scrape details for a single member."""
         detail_data = {}
 
@@ -317,6 +317,18 @@ class ScrapeDetailsCommand(BaseCommand):
 
             await page.goto(url, wait_until='networkidle')
             await page.wait_for_timeout(2000)
+
+            # Debug: Save HTML for analysis (only for first few members)
+            if member_name and scraper.logger:
+                try:
+                    debug_html = await page.content()
+                    safe_name = member_name.replace('/', '_').replace('\\', '_')[:30]
+                    debug_file = scraper.output_dir / f"debug_{safe_name}.html"
+                    with open(debug_file, 'w', encoding='utf-8') as f:
+                        f.write(debug_html)
+                    scraper.logger.info(f"Saved debug HTML for {member_name}: {debug_file}")
+                except Exception as e:
+                    scraper.logger.warning(f"Failed to save debug HTML: {e}")
 
             # Extract detailed member information
             member_details = await page.evaluate("""
@@ -335,145 +347,161 @@ class ScrapeDetailsCommand(BaseCommand):
                         state: ''
                     };
 
-                    // Extract mailing address
-                    const addressSelectors = [
-                        '.address', '.mailing-address', '[class*="address"]',
-                        '.location', '.contact', '[class*="contact"]'
-                    ];
-                    for (const selector of addressSelectors) {
-                        const element = document.querySelector(selector);
-                        if (element && element.textContent.trim()) {
-                            data.mailing_address = element.textContent.trim();
-                            break;
-                        }
+                    // Try multiple strategies to find member data
+
+                    // Strategy 1: Extract from member-specific elements
+                    // Based on actual page structure analysis
+
+                    // Extract field/position from #info-position
+                    const positionElement = document.querySelector('#info-position');
+                    if (positionElement) {
+                        data.field = positionElement.textContent.trim();
                     }
 
-                    // Extract phone
-                    const phoneSelectors = [
-                        '.phone', '.telephone', '.tel', '[class*="phone"]',
-                        'a[href^="tel:"]'
-                    ];
-                    for (const selector of phoneSelectors) {
-                        const element = document.querySelector(selector);
-                        if (element) {
-                            data.phone = element.textContent.trim() ||
-                                       element.getAttribute('href')?.replace('tel:', '');
-                            if (data.phone) break;
-                        }
+                    // Extract chapter from #info-chapter
+                    const chapterElement = document.querySelector('#info-chapter');
+                    if (chapterElement) {
+                        // Could add chapter info if needed
                     }
 
-                    // Extract email
-                    const emailSelectors = [
-                        '.email', '[class*="email"]',
-                        'a[href^="mailto:"]'
-                    ];
-                    for (const selector of emailSelectors) {
-                        const element = document.querySelector(selector);
-                        if (element) {
-                            data.email = element.textContent.trim() ||
-                                       element.getAttribute('href')?.replace('mailto:', '');
-                            if (data.email) break;
-                        }
-                    }
-
-                    // Extract field/classification
-                    const fieldSelectors = [
-                        '.field', '.classification', '.profession', '.category',
-                        '[class*="field"]', '[class*="class"]', '[class*="prof"]'
-                    ];
-                    for (const selector of fieldSelectors) {
-                        const element = document.querySelector(selector);
-                        if (element && element.textContent.trim()) {
-                            data.field = element.textContent.trim();
-                            break;
-                        }
-                    }
-
-                    // Extract location (city, state)
-                    const locationSelectors = [
-                        '.location', '.city', '.address', '[class*="location"]'
-                    ];
-                    for (const selector of locationSelectors) {
-                        const element = document.querySelector(selector);
-                        if (element && element.textContent.trim()) {
-                            const location = element.textContent.trim();
-                            const parts = location.split(',');
-                            if (parts.length >= 2) {
-                                data.city = parts[0].trim();
-                                data.state = parts[1].trim();
+                    // Extract contacts from #contacts section
+                    const contactsSection = document.querySelector('#contacts');
+                    if (contactsSection) {
+                        // Extract email/website from #contacts-email
+                        const emailElement = document.querySelector('#contacts-email');
+                        if (emailElement) {
+                            const emailText = emailElement.textContent.trim();
+                            if (emailText && !emailText.includes('@')) {
+                                // It's probably a website
+                                data.email = emailText;
+                            } else if (emailText.includes('@')) {
+                                data.email = emailText;
                             }
-                            break;
+                        }
+
+                        // Extract address/phone from #contacts-address
+                        const addressElement = document.querySelector('#contacts-address');
+                        if (addressElement) {
+                            const addressText = addressElement.textContent.trim();
+
+                            // Split by line breaks to separate city/state from phone
+                            const addressLines = addressText.split('\\n').map(line => line.trim()).filter(line => line);
+
+                            // First line is usually city/state
+                            if (addressLines.length > 0) {
+                                const locationParts = addressLines[0].split(',');
+                                if (locationParts.length >= 2) {
+                                    data.city = locationParts[0].trim();
+                                    data.state = locationParts[1].trim();
+                                } else {
+                                    data.city = addressLines[0];
+                                }
+                            }
+
+                            // Look for phone in remaining lines
+                            for (let i = 1; i < addressLines.length; i++) {
+                                const line = addressLines[i];
+                                // Check if line contains phone pattern
+                                if (/\\(\\d{3}\\)\\s*\\d{3}-\\d{4}|\\d{3}-\\d{3}-\\d{4}/.test(line)) {
+                                    data.phone = line;
+                                    break;
+                                }
+                            }
                         }
                     }
 
-                    // Extract about section
+                    // Strategy 2: Look for about/description content
+                    // Check for member description in various places
                     const aboutSelectors = [
-                        '.about', '.description', '.bio', '.summary',
-                        '[class*="about"]', '[class*="bio"]', '[class*="desc"]'
+                        '#description', '.description', '.member-description',
+                        '.firm-description', '.company-description',
+                        '#about', '.about', '.member-about',
+                        'p:not(#contacts-address p):not(.footer p):not(.copyright p)'
                     ];
+
                     for (const selector of aboutSelectors) {
-                        const element = document.querySelector(selector);
-                        if (element && element.textContent.trim()) {
-                            data.about = element.textContent.trim();
-                            break;
+                        const elements = document.querySelectorAll(selector);
+                        for (const element of elements) {
+                            const text = element.textContent.trim();
+                            // Skip very short or very long text, and avoid footer content
+                            if (text.length > 50 && text.length < 2000 &&
+                                !element.closest('footer, .footer') &&
+                                !text.includes('Copyright') &&
+                                !text.includes('All rights reserved')) {
+
+                                // Check if this looks like member description
+                                const words = text.split('\\s+').length;
+                                if (words > 10 && words < 500) {
+                                    if (!data.about || text.length > data.about.length) {
+                                        data.about = text;
+                                    }
+                                }
+                            }
                         }
                     }
 
-                    // Extract social media
-                    const socialSelectors = [
-                        'a[href*="facebook"]', 'a[href*="twitter"]', 'a[href*="linkedin"]',
-                        'a[href*="instagram"]', 'a[href*="youtube"]', 'a[href*="social"]'
-                    ];
-                    socialSelectors.forEach(selector => {
-                        document.querySelectorAll(selector).forEach(link => {
+                    // Strategy 3: Extract social media from contacts section
+                    const contactsElement = document.querySelector('#contacts');
+                    if (contactsElement) {
+                        const socialLinks = contactsElement.querySelectorAll('a[href*="facebook"], a[href*="twitter"], a[href*="linkedin"], a[href*="instagram"], a[href*="youtube"]');
+
+                        socialLinks.forEach(link => {
+                            const platform = link.href.includes('facebook') ? 'facebook' :
+                                           link.href.includes('twitter') ? 'twitter' :
+                                           link.href.includes('linkedin') ? 'linkedin' :
+                                           link.href.includes('instagram') ? 'instagram' :
+                                           link.href.includes('youtube') ? 'youtube' : 'other';
+
                             data.social_media.push({
-                                platform: link.href.includes('facebook') ? 'facebook' :
-                                         link.href.includes('twitter') ? 'twitter' :
-                                         link.href.includes('linkedin') ? 'linkedin' :
-                                         link.href.includes('instagram') ? 'instagram' :
-                                         link.href.includes('youtube') ? 'youtube' : 'other',
+                                platform: platform,
                                 url: link.href,
                                 text: link.textContent.trim()
                             });
                         });
-                    });
-
-                    // Extract highlights/achievements
-                    const highlightSelectors = [
-                        '.highlight', '.achievement', '.award', '.feature',
-                        '[class*="highlight"]', '[class*="award"]'
-                    ];
-                    highlightSelectors.forEach(selector => {
-                        document.querySelectorAll(selector).forEach(element => {
-                            const highlight = element.textContent.trim();
-                            if (highlight) {
-                                data.highlights.push(highlight);
-                            }
-                        });
-                    });
-
-                    // Extract logo
-                    const logoSelectors = [
-                        'img[src*="logo"]', '.logo img', '[class*="logo"] img'
-                    ];
-                    for (const selector of logoSelectors) {
-                        const img = document.querySelector(selector);
-                        if (img && img.src) {
-                            data.logo = img.src;
-                            break;
-                        }
                     }
 
-                    // Extract photos (excluding logo)
-                    document.querySelectorAll('img').forEach(img => {
-                        if (img.src && !img.src.includes('logo') &&
-                            !img.src.includes('icon') && img.src.length > 10) {
-                            data.photos.push({
-                                url: img.src,
-                                alt: img.alt || ''
-                            });
+                    // Strategy 4: Extract images (member-specific)
+                    const images = document.querySelectorAll('img');
+                    images.forEach(img => {
+                        if (img.src && img.src.length > 10) {
+                            // Check if it's likely a member photo/logo
+                            const isMemberImage = (
+                                img.src.includes('member') ||
+                                img.src.includes('firm') ||
+                                img.src.includes('company') ||
+                                img.closest('.member-content, .firm-content, .company-content') ||
+                                img.closest('article, .entry-content') ||
+                                (img.alt && (
+                                    img.alt.toLowerCase().includes('firm') ||
+                                    img.alt.toLowerCase().includes('company') ||
+                                    img.alt.toLowerCase().includes('member')
+                                ))
+                            );
+
+                            if (isMemberImage) {
+                                if (img.src.includes('logo') || img.alt?.toLowerCase().includes('logo')) {
+                                    data.logo = img.src;
+                                } else {
+                                    data.photos.push({
+                                        url: img.src,
+                                        alt: img.alt || ''
+                                    });
+                                }
+                            }
                         }
                     });
+
+                    // Strategy 5: Parse location from address if found
+                    if (data.mailing_address) {
+                        const addressParts = data.mailing_address.split(',');
+                        if (addressParts.length >= 2) {
+                            data.city = addressParts[addressParts.length - 2].trim();
+                            const stateZip = addressParts[addressParts.length - 1].trim().split(' ');
+                            if (stateZip.length >= 1) {
+                                data.state = stateZip[0];
+                            }
+                        }
+                    }
 
                     return data;
                 }

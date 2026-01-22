@@ -1,0 +1,21 @@
+2026-01-22 08:50:51 [INFO] Initializing Playwright browser...
+2026-01-22 08:50:52 [INFO] Browser initialized successfully
+2026-01-22 08:50:52 [INFO] Scraping details for A Classical Studio, Inc (1/3)
+2026-01-22 08:51:00 [INFO] Saved debug HTML for A Classical Studio, Inc: /Users/cenk-isu/Documents/_projects/upwork/scraper-classicist-org/outputs/debug_A Classical Studio, Inc.html
+2026-01-22 08:51:00 [WARNING] Failed to scrape member details from https://www.classicist.org/membership-directory/a-classical-studio-inc/: Page.evaluate: SyntaxError: Identifier 'contactsElement' has already been declared
+    at eval (<anonymous>)
+    at UtilityScript.evaluate (<anonymous>:290:30)
+    at UtilityScript.<anonymous> (<anonymous>:1:44)
+2026-01-22 08:51:02 [INFO] Scraping details for A. A. Ford Interiors (2/3)
+2026-01-22 08:51:08 [INFO] Saved debug HTML for A. A. Ford Interiors: /Users/cenk-isu/Documents/_projects/upwork/scraper-classicist-org/outputs/debug_A. A. Ford Interiors.html
+2026-01-22 08:51:08 [WARNING] Failed to scrape member details from https://www.classicist.org/membership-directory/a-a-ford-interiors/: Page.evaluate: SyntaxError: Identifier 'contactsElement' has already been declared
+    at eval (<anonymous>)
+    at UtilityScript.evaluate (<anonymous>:290:30)
+    at UtilityScript.<anonymous> (<anonymous>:1:44)
+2026-01-22 08:51:10 [INFO] Scraping details for A. Ottavino Corp. (3/3)
+2026-01-22 08:51:15 [INFO] Saved debug HTML for A. Ottavino Corp.: /Users/cenk-isu/Documents/_projects/upwork/scraper-classicist-org/outputs/debug_A. Ottavino Corp..html
+2026-01-22 08:51:15 [WARNING] Failed to scrape member details from https://www.classicist.org/membership-directory/a-ottavino-corp/: Page.evaluate: SyntaxError: Identifier 'contactsElement' has already been declared
+    at eval (<anonymous>)
+    at UtilityScript.evaluate (<anonymous>:290:30)
+    at UtilityScript.<anonymous> (<anonymous>:1:44)
+2026-01-22 08:51:15 [INFO] Browser closed

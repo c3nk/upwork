@@ -1,0 +1,8 @@
+2026-01-22 08:39:09 [INFO] Initializing Playwright browser...
+2026-01-22 08:39:10 [INFO] Browser initialized successfully
+2026-01-22 08:39:10 [INFO] Scraping details for A Classical Studio, Inc (1/5)
+2026-01-22 08:39:19 [INFO] Scraping details for A. A. Ford Interiors (2/5)
+2026-01-22 08:39:25 [INFO] Scraping details for A. Ottavino Corp. (3/5)
+2026-01-22 08:39:32 [INFO] Scraping details for Aalto Marble Inlay (4/5)
+2026-01-22 08:39:38 [INFO] Scraping details for Aaron Cote Architecture PLLC (5/5)
+2026-01-22 08:39:43 [INFO] Browser closed
